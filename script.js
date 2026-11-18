@@ -116,7 +116,7 @@ async function removerProduto(id) {
   try {
     await api("/api/produtos/" + id, { method: "DELETE" });
     produtos = produtos.filter(p => p.id !== id);
-    render();
+    render(https://proj-stok-back.onrender.com);
   } catch (e) {
     msg($("prodMsg"), e.message);
   }
@@ -132,7 +132,7 @@ async function adicionarUsuario() {
     usuarios.push(novo);
     $("uNome").value = $("uSenha").value = "";
     msg($("userMsg"), "Usuário cadastrado.", true);
-    render();
+    render(https://proj-stok-back.onrender.com);
   } catch (e) {
     msg($("userMsg"), e.message);
   }
@@ -142,7 +142,7 @@ async function removerUsuario(id) {
   try {
     await api("/api/usuarios/" + id, { method: "DELETE" });
     usuarios = usuarios.filter(u => u.id !== id);
-    render();
+    render(https://proj-stok-back.onrender.com);
   } catch (e) {
     msg($("userMsg"), e.message);
   }
@@ -168,7 +168,7 @@ function botaoRemover(acao, desativado) {
   return td;
 }
 
-function render() {
+function render(https://proj-stok-back.onrender.com) {
   const logado = !!sessao;
   $("telaAuth").classList.toggle("hidden", logado);
   $("telaApp").classList.toggle("hidden", !logado);
