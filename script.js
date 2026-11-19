@@ -1,230 +1,211 @@
-// ---------- Estado ----------
-let usuarios = [];   // [{id, usuario}]
-let produtos = [];   // [{id, nome, preco, qtd}]
-let sessao = null;   // nome do usuário logado ou null
-let token = lerToken();
+const API_URL = "https://proj-stok-back-1.onrender.com/api";
 
-const $ = (id) => document.getElementById(id);
+const authContainer = document.getElementById("auth-container");
+const appContainer = document.getElementById("app-container");
+const authForm = document.getElementById("auth-form");
+const authTitle = document.getElementById("auth-title");
+const authBtn = document.getElementById("auth-btn");
+const authToggleText = document.getElementById("toggle-mode");
+const authError = document.getElementById("auth-error");
+const inputUsuario = document.getElementById("usuario");
+const inputSenha = document.getElementById("senha");
 
-function lerToken() {
-  try { return localStorage.getItem("token"); } catch { return null; }
-}
-function gravarToken(t) {
-  token = t;
-  try { t ? localStorage.setItem("token", t) : localStorage.removeItem("token"); } catch {}
-}
+const currentUserName = document.getElementById("current-user-name");
+const logoutBtn = document.getElementById("logout-btn");
 
-// ---------- API ----------
-async function api(caminho, { method = "GET", body } = {}) {
-  const headers = {};
-  if (body) headers["Content-Type"] = "application/json";
-  if (token) headers["Authorization"] = "Bearer " + token;
+const produtoForm = document.getElementById("produto-form");
+const prodNome = document.getElementById("prod-nome");
+const prodPreco = document.getElementById("prod-preco");
+const prodQtd = document.getElementById("prod-qtd");
+const produtosTbody = document.getElementById("produtos-tbody");
 
-  const res = await fetch(caminho, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (res.status === 204) return null;
+let isRegistering = false;
 
-  const dados = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (res.status === 401 && token) sair(); // sessão expirou
-    throw new Error(dados.erro || "Erro ao comunicar com o servidor.");
-  }
-  return dados;
+async function parseJSON(res) {
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-// ---------- Utilidades ----------
-function msg(el, texto, ok) {
-  el.textContent = texto;
-  el.className = "msg" + (ok ? " ok" : "");
-}
-
-const brl = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-// ---------- Login / cadastro ----------
-let modoCadastro = false;
-
-function alternarModo() {
-  modoCadastro = !modoCadastro;
-  $("authTitulo").textContent = modoCadastro ? "Criar conta" : "Entrar";
-  $("authSub").textContent = modoCadastro ? "Escolha um usuário e uma senha." : "Use seu usuário e senha.";
-  $("btnAuth").textContent = modoCadastro ? "Criar conta" : "Entrar";
-  $("btnTroca").textContent = modoCadastro ? "Já tenho conta" : "Criar uma conta";
-  $("boxConfirma").classList.toggle("hidden", !modoCadastro);
-  msg($("authMsg"), "");
-}
-
-async function enviarAuth() {
-  const usuario = $("aUser").value.trim();
-  const senha = $("aPass").value;
-  const aviso = $("authMsg");
-  if (!usuario || !senha) return msg(aviso, "Preencha usuário e senha.");
-  if (modoCadastro && senha !== $("aPass2").value) return msg(aviso, "As senhas não coincidem.");
-
-  try {
-    const r = await api(modoCadastro ? "/api/auth/registro" : "/api/auth/login", {
-      method: "POST",
-      body: { usuario, senha },
-    });
-    await entrar(r);
-  } catch (e) {
-    msg(aviso, e.message);
-  }
-}
-
-async function entrar({ token: t, usuario }) {
-  gravarToken(t);
-  sessao = usuario;
-  $("aUser").value = $("aPass").value = $("aPass2").value = "";
-  msg($("authMsg"), "");
-  await carregarDados();
-  render();
-}
-
-function sair() {
-  gravarToken(null);
-  sessao = null;
-  usuarios = [];
-  produtos = [];
-  render();
-}
-
-async function carregarDados() {
-  [produtos, usuarios] = await Promise.all([api("/api/produtos"), api("/api/usuarios")]);
-}
-
-// ---------- Produtos ----------
-async function adicionarProduto() {
-  const nome = $("pNome").value.trim();
-  const preco = parseFloat($("pPreco").value);
-  const qtd = parseInt($("pQtd").value, 10);
-  const aviso = $("prodMsg");
-  if (!nome) return msg(aviso, "Informe o nome do produto.");
-  if (isNaN(preco) || preco < 0) return msg(aviso, "Informe um preço válido.");
-  if (isNaN(qtd) || qtd < 0) return msg(aviso, "Informe uma quantidade válida.");
-
-  try {
-    const novo = await api("/api/produtos", { method: "POST", body: { nome, preco, qtd } });
-    produtos.push(novo);
-    $("pNome").value = $("pPreco").value = $("pQtd").value = "";
-    msg(aviso, "Produto adicionado.", true);
-    render();
-  } catch (e) {
-    msg(aviso, e.message);
-  }
-}
-
-async function removerProduto(id) {
-  try {
-    await api("/api/produtos/" + id, { method: "DELETE" });
-    produtos = produtos.filter(p => p.id !== id);
-    render(https://proj-stok-back.onrender.com);
-  } catch (e) {
-    msg($("prodMsg"), e.message);
-  }
-}
-
-// ---------- Usuários (dentro do sistema) ----------
-async function adicionarUsuario() {
-  try {
-    const novo = await api("/api/usuarios", {
-      method: "POST",
-      body: { usuario: $("uNome").value, senha: $("uSenha").value },
-    });
-    usuarios.push(novo);
-    $("uNome").value = $("uSenha").value = "";
-    msg($("userMsg"), "Usuário cadastrado.", true);
-    render(https://proj-stok-back.onrender.com);
-  } catch (e) {
-    msg($("userMsg"), e.message);
-  }
-}
-
-async function removerUsuario(id) {
-  try {
-    await api("/api/usuarios/" + id, { method: "DELETE" });
-    usuarios = usuarios.filter(u => u.id !== id);
-    render(https://proj-stok-back.onrender.com);
-  } catch (e) {
-    msg($("userMsg"), e.message);
-  }
-}
-
-// ---------- Desenho da tela ----------
-function celula(texto, classe) {
-  const td = document.createElement("td");
-  td.textContent = texto;
-  if (classe) td.className = classe;
-  return td;
-}
-
-function botaoRemover(acao, desativado) {
-  const td = document.createElement("td");
-  td.className = "n";
-  const b = document.createElement("button");
-  b.className = "del";
-  b.textContent = "Remover";
-  b.disabled = !!desativado;
-  b.onclick = acao;
-  td.appendChild(b);
-  return td;
-}
-
-function render(https://proj-stok-back.onrender.com) {
-  const logado = !!sessao;
-  $("telaAuth").classList.toggle("hidden", logado);
-  $("telaApp").classList.toggle("hidden", !logado);
-  if (!logado) return;
-
-  $("nomeLogado").textContent = sessao;
-
-  const lp = $("listaProdutos");
-  lp.innerHTML = "";
-  produtos.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.append(celula(p.nome), celula(brl(p.preco), "n"), celula(String(p.qtd), "n"),
-              botaoRemover(() => removerProduto(p.id)));
-    lp.appendChild(tr);
-  });
-  $("vazioProd").classList.toggle("hidden", produtos.length > 0);
-
-  const lu = $("listaUsuarios");
-  lu.innerHTML = "";
-  usuarios.forEach(u => {
-    const eu = u.usuario === sessao;
-    const tr = document.createElement("tr");
-    tr.append(celula(u.usuario + (eu ? " (você)" : "")),
-              botaoRemover(() => removerUsuario(u.id), eu));
-    lu.appendChild(tr);
-  });
-}
-
-// ---------- Eventos ----------
-$("btnAuth").onclick = enviarAuth;
-$("btnTroca").onclick = alternarModo;
-$("btnSair").onclick = sair;
-$("btnProduto").onclick = adicionarProduto;
-$("btnUsuario").onclick = adicionarUsuario;
-["aUser", "aPass", "aPass2"].forEach(id =>
-  $(id).addEventListener("keydown", e => { if (e.key === "Enter") enviarAuth(); }));
-
-// ---------- Inicialização ----------
-(async function iniciar() {
+document.addEventListener("DOMContentLoaded", async () => {
+  const token = localStorage.getItem("token");
   if (token) {
     try {
-      const eu = await api("/api/auth/eu");
-      sessao = eu.usuario;
-      await carregarDados();
-      return render();
-    } catch {
-      gravarToken(null);
-      sessao = null;
+      const res = await fetch(`${API_URL}/auth/eu`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await parseJSON(res);
+        if (data && data.usuario) {
+          showApp(data.usuario);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
+    localStorage.removeItem("token");
   }
-  // Sem nenhum usuário ainda? Já abre na tela de cadastro.
+  
+  checkAuthStatus();
+});
+
+async function checkAuthStatus() {
   try {
-    const { temUsuarios } = await api("/api/auth/status");
-    if (!temUsuarios) alternarModo();
-  } catch {
-    msg($("authMsg"), "Não foi possível conectar ao servidor.");
+    const res = await fetch(`${API_URL}/auth/status`);
+    const data = await parseJSON(res);
+    if (data && !data.temUsuarios) {
+      isRegistering = true;
+      updateAuthMode();
+      authError.textContent = "Nenhum usuário cadastrado. Crie o primeiro acesso.";
+    }
+  } catch (e) {
+    authError.textContent = "Erro ao conectar com o servidor.";
   }
-  render();
-})();
+}
+
+authToggleText.addEventListener("click", (e) => {
+  e.preventDefault();
+  isRegistering = !isRegistering;
+  updateAuthMode();
+});
+
+function updateAuthMode() {
+  authError.textContent = "";
+  if (isRegistering) {
+    authTitle.textContent = "Criar Primeira Conta";
+    authBtn.textContent = "Cadastrar";
+    authToggleText.innerHTML = 'Já tem uma conta? <a href="#">Entrar</a>';
+  } else {
+    authTitle.textContent = "Entrar no Sistema";
+    authBtn.textContent = "Entrar";
+    authToggleText.innerHTML = 'Não tem uma conta? <a href="#">Cadastre o primeiro usuário</a>';
+  }
+}
+
+authForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  authError.textContent = "";
+  const endpoint = isRegistering ? "/auth/registro" : "/auth/login";
+
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        usuario: inputUsuario.value,
+        senha: inputSenha.value
+      })
+    });
+
+    const data = await parseJSON(res);
+    if (!res.ok) throw new Error(data?.erro || "Erro na autenticação");
+
+    localStorage.setItem("token", data.token);
+    showApp(data.usuario);
+  } catch (err) {
+    authError.textContent = err.message;
+  }
+});
+
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("token");
+  appContainer.classList.add("hidden");
+  authContainer.classList.remove("hidden");
+  inputUsuario.value = "";
+  inputSenha.value = "";
+  checkAuthStatus();
+});
+
+function showApp(username) {
+  authContainer.classList.add("hidden");
+  appContainer.classList.remove("hidden");
+  currentUserName.textContent = username;
+  carregarProdutos();
+}
+
+async function carregarProdutos() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/produtos`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Erro ao carregar produtos");
+    
+    const produtos = await parseJSON(res);
+    produtosTbody.innerHTML = "";
+
+    if (!produtos || produtos.length === 0) {
+      produtosTbody.innerHTML = `<tr><td colspan="4" style="text-align: center;">Nenhum produto cadastrado.</td></tr>`;
+      return;
+    }
+
+    produtos.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(p.nome)}</td>
+        <td>R$ ${Number(p.preco).toFixed(2)}</td>
+        <td>${p.qtd}</td>
+        <td>
+          <button class="btn danger sm" onclick="deletarProduto('${p.id}')">Excluir</button>
+        </td>
+      `;
+      produtosTbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+produtoForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API_URL}/produtos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nome: prodNome.value,
+        preco: parseFloat(prodPreco.value),
+        qtd: parseInt(prodQtd.value)
+      })
+    });
+
+    const data = await parseJSON(res);
+    if (!res.ok) throw new Error(data?.erro || "Erro ao cadastrar produto");
+
+    prodNome.value = "";
+    prodPreco.value = "";
+    prodQtd.value = "";
+    carregarProdutos();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function deletarProduto(id) {
+  if (!confirm("Deseja realmente excluir este produto?")) return;
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API_URL}/produtos/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error("Erro ao excluir produto");
+    await parseJSON(res);
+    carregarProdutos();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>'"]/g, 
+    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+  );
+}
