@@ -1,4 +1,6 @@
-const API_URL = "https://proj-stok-back-1.onrender.com/api";
+  const API_URL = "/api";
+//const API_URL = "https://proj-stok-back-1.onrender.com/api";
+
 
 const authContainer = document.getElementById("auth-container");
 const appContainer = document.getElementById("app-container");
