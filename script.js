@@ -1,6 +1,6 @@
 
-const API_URL = "http://localhost:3000/api";
-
+//const API_URL = "http://localhost:3000/api";
+const API_URL = "https://proj-stok-back.onrender.com";
 // Para produção, utilize:
 // const API_URL = "https://proj-stok-back-1.onrender.com/api";
 
